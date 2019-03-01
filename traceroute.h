@@ -37,6 +37,14 @@ typedef unsigned short u_int16_t;
 #define BUFFER_SIZE 2048
 
 
+// Protocols
+
+enum protocols
+{
+      ICMP = 0,
+      UDP = 1,
+      TCP = 2
+};
 
 // create IP packet
 
@@ -51,15 +59,13 @@ struct IP_packet
       u_int8_t ttl; //time to live;
       u_int8_t protocol; //ICMP we set 1;
       u_int16_t header_checksum; //checksum;
-      u_int8_t source_addr[4];
-      u_int8_t remote_addr[4];
+      u_int8_t *source_addr; //32bit
+      u_int8_t *remote_addr; //32bit
 };
 
 typedef struct IP_packet IP_packet_t;
 
 void IP_packet_create(IP_packet_t **t, u_int8_t ttl);
-
-
 
 //ICMP packet
 
@@ -75,7 +81,7 @@ struct ICMP_packet
 
 enum ICMP_packet_type{
       DISTINATION_UNREACHABLE = 3,
-      TIME_EXCEEDED = 11,
+      TIME_TO_EXCEEDED = 11,
       PARAMETER_PROBLEM = 12,
       SOURCE_QUENCH = 4,
       REDIRECT = 5,
@@ -89,7 +95,7 @@ enum ICMP_packet_type{
 
 typedef struct ICMP_packet ICMP_packet_t;
 
-void IPCMP_packet_clip(char *buffer, size_t buffer_size);
+void ICMP_packet_clip(char *buffer, size_t buffer_size);
 
 int ICMP_packet_create(ICMP_packet_t *packet, char **buffer);
 

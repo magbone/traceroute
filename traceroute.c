@@ -20,13 +20,6 @@ void IP_packet_create(IP_packet_t **t,  u_int8_t ttl)
       //(*t)->remote_addr = 0;
 }
 
-
-void IPCMP_packet_clip(char *buffer,size_t buffer_size)
-{
-      
-}
-
-
 int ICMP_packet_create(ICMP_packet_t *packet, char **buffer)
 {
       *buffer = (char *)malloc(sizeof(char) * 18);
@@ -79,20 +72,57 @@ u_int16_t ICMP_packet_checksum(char *s, int len)
       memset(temp_check_sum, 0, temp_len);
       for(int i = 0, j = 0;i < temp_len;i++,j+=2)
       {
-            temp_check_sum[i] = s[j] << 8 + s[j + 1];
+            temp_check_sum[i] = (s[j] << 8) + s[j + 1];
       }
       int k = 0, sum = 0;
 
       while(k < temp_len)
       {
             sum += temp_check_sum[k];
-            if(sum >> 16 != 0) sum = (sum & 0xffff) + sum >> 16;
+            if(sum >> 16 != 0) sum = (sum & 0xffff) + (sum >> 16);
             k++;
       }
 
       return (u_int16_t)~sum;
 }
 
+void ICMP_packet_clip(char *buffer, size_t buffer_size)
+{
+      IP_packet_t *packet;
+      packet = (IP_packet_t *)malloc(sizeof(IP_packet_t));
+      if(packet == NULL) 
+      {
+            printf("Error: Init failed.\n");
+            exit(1);
+      }
+      //int index = 0;
+      packet->version_IPL = buffer[0];
+      packet->type_of_service = buffer[1];
+      packet->length = (buffer[2] << 8) + (buffer[3] & 0xff);//(buffer[index++] << 8 ) + (buffer[index++]);
+      packet->indentification = (buffer[4] << 8) + (buffer[5] & 0xff);
+      packet->flags_fragmentOffset = (buffer[6] << 8) + (buffer[7] & 0xff);
+      packet->ttl = buffer[8];
+      printf("%d\t", packet->ttl);
+      packet->protocol = buffer[9];
+      packet->header_checksum = (buffer[10] << 8) + (buffer[11] & 0xff);
+      char source_addr[4] = { buffer[12], buffer[13], buffer[14], buffer[15]};
+      packet->source_addr = (u_int8_t *)source_addr;
+      printf("%d.%d.%d.%d\n", packet->source_addr[0], packet->source_addr[1], packet->source_addr[2], packet->source_addr[3]);
+      char remote_addr[4] = { buffer[16], buffer[17], buffer[18], buffer[19]};
+      packet->source_addr = (u_int8_t *)remote_addr;
+
+      //ICMP protocol
+      ICMP_packet_t *icmp;
+      icmp = (ICMP_packet_t *)malloc(sizeof(ICMP_packet_t));
+      if(icmp == NULL)
+      {
+            printf("Error: Init failed.\n");
+            exit(1);
+      }
+
+      icmp->type = buffer[20];
+      icmp->code = buffer[21];
+}
 #ifdef _PLATFORM_UNIX
 void traceroute_unix(int argc,char *argv[])
 {
@@ -101,11 +131,12 @@ void traceroute_unix(int argc,char *argv[])
       int sockfd;
       
 
-      int ttl = 1;
+      int ttl = 0;
       struct sockaddr_in remote_addr;
       // the Uinx (included the macOS) can't use the IPPROTO_ICMP to create ICMP packet.
       // QAQ 
-      if((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0)
+      // ICMP model
+      if((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0)
       {
             perror("Error");
             exit(1);
@@ -124,29 +155,30 @@ void traceroute_unix(int argc,char *argv[])
       }
 
       
-      char messge[10], recv[BUFFER_SIZE];
+      char* message, recv[BUFFER_SIZE];
+      ICMP_packet_t *packet;
+      ICMP_packet_new(&packet, ECHO, 0);
+
+      int packet_len = ICMP_packet_create(packet, &message);
       int addr_len = sizeof(remote_addr);
-      memset(messge,0,10);
       memset(&remote_addr,0,sizeof(remote_addr));
       remote_addr.sin_family = AF_INET;
       remote_addr.sin_addr.s_addr = inet_addr("43.254.218.121");
       remote_addr.sin_port = htons(32456);
-      IP_packet_t *packet;
+
       
       int ret = 0;
       while(ttl < MAX_TTL)
       {
             memset(recv,0,BUFFER_SIZE);
-            IP_packet_create(&packet,ttl);
-            #ifdef _PLATFORM_UNIX
-            if(setsockopt(sockfd,IPPROTO_IP,IP_TTL,&ttl,sizeof(ttl)) < 0)
+            ttl++;
+            if(setsockopt(sockfd, IPPROTO_IP, IP_TTL, (char *)&ttl, sizeof(ttl)) < 0)
             {
                   perror("Error");
                   close(sockfd);
                   exit(1); 
             }
-            #endif
-            if(sendto(sockfd, messge, 10, 0, (struct sockaddr*) &remote_addr,addr_len) < 0)
+            if(sendto(sockfd, message, packet_len, 0, (struct sockaddr*) &remote_addr,addr_len) < 0)
             {
                   perror("Error");
                   close(sockfd);
@@ -154,15 +186,16 @@ void traceroute_unix(int argc,char *argv[])
             }
             if((ret = recvfrom(sockfd, recv, BUFFER_SIZE, 0,(struct sockaddr*) &remote_addr,(socklen_t *)&addr_len)) < 0)
             {
-                  perror("Error");
+                  //perror("Error");
                   if(ret == EWOULDBLOCK || ret == EAGAIN)
                   {
                         printf("time out\n");
                   }
-                  printf("%d\n",ret);
             }
-            printf("%s\n",recv);
-            ttl++;
+            printf("%d\n",ret);
+            ICMP_packet_clip(recv, ret);
+            sleep(3);
+            //break;
       }
 }
 
@@ -203,7 +236,7 @@ void traceroute_win(int argc,char *argv[])
             exit(1);
       }
 
-      int ttl = 55;
+      int ttl = 1;
       int ret;
       int len = sizeof(remote_addr);
       
