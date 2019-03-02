@@ -3,8 +3,9 @@
 
 #include <unistd.h>           // close()
 #include <string.h>           // strcpy, memset(), and memcpy()
+#include <time.h>
 
-#if defined(__APPLE__)/*defined(TRAGET_OS_IPHONE) || defined(TARGET_OS_MAC) */|| defined(__unix__)
+#if defined(__APPLE__) || defined(linux)/*defined(TRAGET_OS_IPHONE) || defined(TARGET_OS_MAC) */|| defined(__unix__)
 #define _PLATFORM_UNIX
 #endif
 
@@ -46,6 +47,7 @@ enum protocols
       TCP = 2
 };
 
+typedef enum protocols protocols_t;
 // create IP packet
 
 /* whole packet */
@@ -95,7 +97,7 @@ enum ICMP_packet_type{
 
 typedef struct ICMP_packet ICMP_packet_t;
 
-void ICMP_packet_clip(char *buffer, size_t buffer_size);
+IP_packet_t* ICMP_packet_clip(char *buffer, size_t buffer_size);
 
 int ICMP_packet_create(ICMP_packet_t *packet, char **buffer);
 
@@ -104,8 +106,27 @@ u_int16_t ICMP_packet_checksum(char *s, int len);
 void ICMP_packet_new(ICMP_packet_t **packet, u_int8_t type, u_int8_t code);
 
 /* Unix platform */
-void traceroute_unix(int argc,char *argv[]);
+void traceroute_unix(int argc, char *argv[]);
 
 /* Windows platform */
-void traceroute_win(int argc,char *argv[]);
+void traceroute_win(int argc, char *argv[]);
+
+struct traceroute_cmd
+{
+      char *addr;
+      protocols_t protocol;
+};
+
+typedef struct traceroute_cmd traceroute_cmd_t;
+
+void traceroute_cmd_new(traceroute_cmd_t ** cpp);
+
+void traceroute_cmd(int argc, char *argv[]);
+
+int traceroute_isrecv(u_int8_t *op, char * rp);
+
+void traceroute_protocol_udp(traceroute_cmd_t *cp);
+
+void traceroute_protocol_icmp(traceroute_cmd_t *cp);
+
 #endif
