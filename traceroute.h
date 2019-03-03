@@ -37,6 +37,7 @@ typedef unsigned short u_int16_t;
 // buffer size
 #define BUFFER_SIZE 2048
 
+#define ODD_EVEN(arr, i, len) ( (i == len) ? 0x00 : arr[i]) // odd octets
 
 // Protocols
 

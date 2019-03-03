@@ -71,7 +71,7 @@ u_int16_t ICMP_packet_checksum(char *s, int len)
       memset(temp_check_sum, 0, temp_len);
       for(int i = 0, j = 0;i < temp_len;i++,j+=2)
       {
-            temp_check_sum[i] = (s[j] << 8) + (s[j + 1] & 0xff);
+            temp_check_sum[i] = (s[j] << 8) + (ODD_EVEN(s, j + 1, len) & 0xff);
       }
       int k = 0, sum = 0;
 
