@@ -115,6 +115,7 @@ struct traceroute_cmd
 {
       char *addr;
       protocols_t protocol;
+      u_int8_t ttl;
 };
 
 typedef struct traceroute_cmd traceroute_cmd_t;

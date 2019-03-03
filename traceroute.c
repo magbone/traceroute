@@ -212,9 +212,10 @@ void traceroute_cmd(int argc, char *argv[])
       //Usage
       traceroute_cmd_t *cp;
       traceroute_cmd_new(&cp);
+      cp->ttl = MAXTTL;
       if(argc == 1)
       {
-            printf("traceroute [-P][protocol] [host]\nUsage:\n-P  protocol. ICMP, UDP, TCP argument\n");
+            printf("traceroute [-P][protocol] [-t][ttl] [host]\nUsage:\n-P\tprotocol. ICMP, UDP, TCP argument\n-t\ttime to live.\n");
             return;
       }
       for(int i = 1; i < argc;i++)
@@ -240,12 +241,18 @@ void traceroute_cmd(int argc, char *argv[])
                         exit(1);
                   }
             }
+            else if (strcmp("-t", argment) == 0) 
+            {
+                  i++;
+                  cp->ttl = (u_int8_t)atoi(argv[i]);
+            }
+            
             else
             {
                  cp->addr = argv[i];
             }
       }
-      printf("traceroute to the %s and heartbeat packet %d times, packet size total 64 bytes.\n", cp->addr, MAX_TTL);
+      printf("traceroute to the %s and heartbeat packet %d times, packet size total 64 bytes.\n", cp->addr, cp->ttl);
       if(cp->protocol == UDP)
       {
             traceroute_protocol_udp(cp);
@@ -320,7 +327,7 @@ void traceroute_protocol_udp(traceroute_cmd_t *cp)
       int ret = 0;
       int addr_len = sizeof(recv);
       clock_t start, finshed;
-      while (ttl < MAXTTL)
+      while (ttl < cp->ttl)
       {
             start = clock();
             if(setsockopt(sendsockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0)
