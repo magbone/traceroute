@@ -123,23 +123,15 @@ IP_packet_t* ICMP_packet_clip(char *buffer, size_t buffer_size)
 
       return packet;
 }
-#ifdef _PLATFORM_UNIX
-void traceroute_unix(int argc,char *argv[])
+void traceroute_run(int argc,char *argv[])
 {
       //command
       traceroute_cmd(argc, argv);
 }
 
-#elif _WIN32
+/*
 void traceroute_win(int argc,char *argv[])
 {
-      WORD socket_version = MAKEWORD(2,2);
-      WSADATA data;
-      if(WSAStartup(socket_version, &data) != 0)
-      {
-            printf("Error: Startup error.\n");
-            exit(1);
-      }
 
       SOCKET s_client = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
       if(s_client == INVALID_SOCKET)
@@ -203,8 +195,7 @@ void traceroute_win(int argc,char *argv[])
       }
       
 }           
-
-#endif
+*/
 
 void traceroute_cmd(int argc, char *argv[])
 {
@@ -252,7 +243,7 @@ void traceroute_cmd(int argc, char *argv[])
                  cp->addr = argv[i];
             }
       }
-      printf("traceroute to the %s and heartbeat packet %d times, packet size total 64 bytes.\n", cp->addr, cp->ttl);
+      printf("traceroute to the %s and heartbeat packet %d times, data size total 64 bytes.\n", cp->addr, cp->ttl);
       if(cp->protocol == UDP)
       {
             traceroute_protocol_udp(cp);
@@ -260,7 +251,12 @@ void traceroute_cmd(int argc, char *argv[])
       else if(cp->protocol == ICMP)
       {
             traceroute_protocol_icmp(cp);
+           
+      }else
+      {
+            return;
       }
+      
       
 }
 
@@ -273,6 +269,15 @@ void traceroute_protocol_udp(traceroute_cmd_t *cp)
       }
       char *address = cp->addr;
 
+      #ifdef WIN32
+      WORD socket_version = MAKEWORD(2,2);
+      WSADATA data;
+      if(WSAStartup(socket_version, &data) != 0)
+      {
+            printf("Error: Startup error.\n");
+            exit(1);
+      }
+      #endif
       int sendsockfd, recvsockfd;
 
       struct sockaddr_in send, recv;
@@ -370,10 +375,11 @@ void traceroute_protocol_udp(traceroute_cmd_t *cp)
 void traceroute_protocol_icmp(traceroute_cmd_t *cp)
 {
       
-      int sockfd;
+      int sockfd, sockld;
 
+      
       int ttl = 0;
-      struct sockaddr_in remote_addr;
+      struct sockaddr_in remote_addr, local_addr;
       // ICMP
       // the Uinx (included the macOS) can't use the IPPROTO_ICMP to create ICMP packet.
       // QAQ 
@@ -384,15 +390,20 @@ void traceroute_protocol_icmp(traceroute_cmd_t *cp)
             exit(1);
       }
       
+      if((sockld = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0)
+      {
+            perror("Error");
+            exit(1);
+      }
 
       //time out setting. 10s 
       struct timeval tv;
       tv.tv_sec = 10;
       tv.tv_usec = 0;
-      if(setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
+      if(setsockopt(sockld, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
       {
             perror("Error");
-            close(sockfd);
+            close(sockld);
             exit(0);
       }
 
@@ -402,14 +413,18 @@ void traceroute_protocol_icmp(traceroute_cmd_t *cp)
       ICMP_packet_new(&packet, ECHO, 0);
 
       int packet_len = ICMP_packet_create(packet, &message);;
-      int addr_len = sizeof(remote_addr);
-      memset(&remote_addr,0,sizeof(remote_addr));
+      int addr_len = sizeof(local_addr);
+      memset(&remote_addr, 0, sizeof(remote_addr));
       remote_addr.sin_family = AF_INET;
-      remote_addr.sin_addr.s_addr = inet_addr("43.254.218.121");
+      remote_addr.sin_addr.s_addr = inet_addr(cp->addr);
       remote_addr.sin_port = htons(0);
       
+      memset(&local_addr, 0, sizeof(local_addr));
+      local_addr.sin_family = AF_INET;
+      local_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+      local_addr.sin_port = htons(0);
       int ret = 0;
-      while(ttl < MAX_TTL)
+      while(ttl < cp->ttl)
       {
             ttl++;
             if(setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0)
@@ -418,30 +433,32 @@ void traceroute_protocol_icmp(traceroute_cmd_t *cp)
                   close(sockfd);
                   exit(1); 
             }
-          
             memset(recv,0,BUFFER_SIZE);
-            for(int i = 0;i < 3;i++)
+            long start = clock();
+            if(sendto(sockfd, message, packet_len, 0, (struct sockaddr*) &remote_addr,addr_len) < 0)
             {
-                  if(sendto(sockfd, message, packet_len, 0, (struct sockaddr*) &remote_addr,addr_len) < 0)
-                  {
-                        perror("Error");
-                        close(sockfd);     
-                        exit(1);   
-                  }
-                  if((ret = recvfrom(sockfd, recv, BUFFER_SIZE, 0,(struct sockaddr*) &remote_addr,(socklen_t *)&addr_len)) < 0)
-                  {
-                        perror("Error");
-                        if(ret == EWOULDBLOCK || ret == EAGAIN)
-                        {
-                              printf("time out\n");
-                        }
-                  }
-                  ICMP_packet_clip(recv, ret);
+                  perror("Error");
+                  close(sockfd);     
+                  exit(1);         
             }
-            
-            sleep(10);
+            if((ret = recvfrom(sockld, recv, BUFFER_SIZE, 0,(struct sockaddr*) &local_addr,(socklen_t *)&addr_len)) < 0)
+            {
+                  printf("*.*.*.*\t*\n");
+                  continue;
+            }
+            long finshed = clock();
+            IP_packet_t* recv_packet = ICMP_packet_clip(recv, ret);
+            printf("%ldms\n", (finshed - start));
+            if(traceroute_isrecv(recv_packet->source_addr, cp->addr))
+            {
+                  printf("The route arrive the distination %s, traceroute finshed.\n", cp->addr);
+                  break;
+            }
+            sleep(3);
             
       }
+      close(sockfd);
+      close(sockld);
 }
 
 void traceroute_cmd_new(traceroute_cmd_t **cp)

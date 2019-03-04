@@ -3,12 +3,6 @@
 int main(int argc,char *argv[])
 {
       
-      #if defined(_PLATFORM_UNIX)
-      traceroute_unix(argc,argv);
-      #elif defined(_WIN32)
-      traceroute_win(argc,argv);
-      #endif 
-      
-      
+      traceroute_run(argc, argv);
       return 0;
 }

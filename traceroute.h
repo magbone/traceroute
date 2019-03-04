@@ -106,11 +106,9 @@ u_int16_t ICMP_packet_checksum(char *s, int len);
 
 void ICMP_packet_new(ICMP_packet_t **packet, u_int8_t type, u_int8_t code);
 
-/* Unix platform */
-void traceroute_unix(int argc, char *argv[]);
 
-/* Windows platform */
-void traceroute_win(int argc, char *argv[]);
+void traceroute_run(int argc, char *argv[]);
+
 
 struct traceroute_cmd
 {
