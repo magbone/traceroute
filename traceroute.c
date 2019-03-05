@@ -203,7 +203,9 @@ void traceroute_cmd(int argc, char *argv[])
       //Usage
       traceroute_cmd_t *cp;
       traceroute_cmd_new(&cp);
+      //defualt setting
       cp->ttl = MAXTTL;
+      cp->packet_size = DATA_SIZE;
       if(argc == 1)
       {
             printf("traceroute [-P][protocol] [-t][ttl] [host]\nUsage:\n-P\tprotocol. ICMP, UDP, TCP argument\n-t\ttime to live.\n");
@@ -211,8 +213,8 @@ void traceroute_cmd(int argc, char *argv[])
       }
       for(int i = 1; i < argc;i++)
       {
-            char *argment = argv[i];
-            if(strcmp("-P", argment) == 0)
+            char *argument = argv[i];
+            if(strcmp("-P", argument) == 0)
             {
                   i++;
                   if(strcmp("ICMP", argv[i]) == 0)
@@ -232,12 +234,16 @@ void traceroute_cmd(int argc, char *argv[])
                         exit(1);
                   }
             }
-            else if (strcmp("-t", argment) == 0) 
+            else if (strcmp("-t", argument) == 0) 
             {
                   i++;
                   cp->ttl = (u_int8_t)atoi(argv[i]);
             }
-            
+            else if (strcmp("-s", argument) == 0)
+            {
+                  i++;
+                  cp->packet_size = (u_int8_t)atoi(argv[i]);
+            }
             else
             {
                  cp->addr = argv[i];
@@ -328,21 +334,21 @@ void traceroute_protocol_udp(traceroute_cmd_t *cp)
             exit(0);
       }
 
-      int ttl = 1;
+      int ttl = 0;
       int ret = 0;
       int addr_len = sizeof(recv);
-      clock_t start, finshed;
+      long long start, middle, finished;
       while (ttl < cp->ttl)
       {
-            start = clock();
+            ttl++;
             if(setsockopt(sendsockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0)
             {
                   perror("Error[1025]");
                   close(sendsockfd);
                   exit(1); 
             }
-          
             memset(recv_message,0,BUFFER_SIZE);
+            start = getSystemTime();
             if(sendto(sendsockfd, send_message, 64, 0, (struct sockaddr*) &send,sizeof(send)) < 0)
             {
                   perror("Error[1026]");
@@ -350,22 +356,23 @@ void traceroute_protocol_udp(traceroute_cmd_t *cp)
                   exit(1);   
             }
             
+            middle = getSystemTime();
+            printf("%d\t", ttl);
             if((ret = recvfrom(recvsockfd, recv_message, BUFFER_SIZE, 0,(struct sockaddr*) &recv,(socklen_t *)&addr_len)) < 0)
             {
-                  printf("*.*.*.*\t*\n");
+                  printf("*.*.*.*\t\t*\t*\t*\n");
                   continue;
             }
-            finshed = clock();
+            finished = getSystemTime();
             
             IP_packet_t* recv_packet = ICMP_packet_clip(recv_message, ret);
-            printf("%ldms\n", (finshed - start));
+            printf("%lldms\t%lldms\t%lldms\n", (middle - start), (finished - middle), (finished - start));
             if(traceroute_isrecv(recv_packet->source_addr, address))
             {
-                  printf("The route arrive the distination %s, traceroute finshed.\n", address);
+                  printf("The route arrive the distination %s, traceroute finished.\n", address);
                   break;
             }
-            ttl++;
-            sleep(3);
+            //sleep(3);
       }
       close(sendsockfd);
       close(recvsockfd);
@@ -376,7 +383,7 @@ void traceroute_protocol_icmp(traceroute_cmd_t *cp)
 {
       
       int sockfd, sockld;
-
+      char *address = cp->addr;
       
       int ttl = 0;
       struct sockaddr_in remote_addr, local_addr;
@@ -416,7 +423,7 @@ void traceroute_protocol_icmp(traceroute_cmd_t *cp)
       int addr_len = sizeof(local_addr);
       memset(&remote_addr, 0, sizeof(remote_addr));
       remote_addr.sin_family = AF_INET;
-      remote_addr.sin_addr.s_addr = inet_addr(cp->addr);
+      remote_addr.sin_addr.s_addr = inet_addr(address);
       remote_addr.sin_port = htons(0);
       
       memset(&local_addr, 0, sizeof(local_addr));
@@ -434,27 +441,28 @@ void traceroute_protocol_icmp(traceroute_cmd_t *cp)
                   exit(1); 
             }
             memset(recv,0,BUFFER_SIZE);
-            long start = clock();
+            long long start = getSystemTime();
             if(sendto(sockfd, message, packet_len, 0, (struct sockaddr*) &remote_addr,addr_len) < 0)
             {
                   perror("Error");
                   close(sockfd);     
                   exit(1);         
             }
+            printf("%d\t", ttl);
+            long long middle = getSystemTime();
             if((ret = recvfrom(sockld, recv, BUFFER_SIZE, 0,(struct sockaddr*) &local_addr,(socklen_t *)&addr_len)) < 0)
             {
-                  printf("*.*.*.*\t*\n");
+                  printf("*.*.*.*\t\t*\t*\t*\n");
                   continue;
             }
-            long finshed = clock();
+            long long finished = getSystemTime();
             IP_packet_t* recv_packet = ICMP_packet_clip(recv, ret);
-            printf("%ldms\n", (finshed - start));
-            if(traceroute_isrecv(recv_packet->source_addr, cp->addr))
+            printf("%lldms\t%lldms\t%lldms\n", (middle - start), (finished - middle), (finished - start));
+            if(traceroute_isrecv(recv_packet->source_addr, address))
             {
-                  printf("The route arrive the distination %s, traceroute finshed.\n", cp->addr);
+                  printf("The route arrive the distination %s, traceroute finished.\n", address);
                   break;
             }
-            sleep(3);
             
       }
       close(sockfd);
@@ -473,7 +481,7 @@ void traceroute_cmd_new(traceroute_cmd_t **cp)
 
 int traceroute_isrecv(u_int8_t *op, char * rp)
 {
-      char str[15];
+      char str[16];
       sprintf(str, "%d.%d.%d.%d", op[0], op[1], op[2], op[3]);
       return strcmp(str, rp) == 0;
 }
