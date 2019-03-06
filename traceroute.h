@@ -29,10 +29,14 @@ static long long getSystemTime(){
 #elif _WIN32
 #include <winsock2.h>
 #include <WS2tcpip.h>
+#include <windows.h>
 #pragma comment(lib,"ws2_32.lib") 
 typedef unsigned char u_int8_t;
 typedef unsigned short u_int16_t;
-static 
+static long long getSystemTime()
+{
+      return GetTickCount();
+}
 #endif
 #include <errno.h>
 

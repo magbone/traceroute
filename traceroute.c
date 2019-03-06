@@ -129,74 +129,6 @@ void traceroute_run(int argc,char *argv[])
       traceroute_cmd(argc, argv);
 }
 
-/*
-void traceroute_win(int argc,char *argv[])
-{
-
-      SOCKET s_client = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-      if(s_client == INVALID_SOCKET)
-      {
-            printf("Error: Socket create error. Error code: %d.\n", WSAGetLastError());
-            exit(1);
-      }
-
-      SOCKADDR_IN remote_addr;
-      remote_addr.sin_family = AF_INET;
-      remote_addr.sin_port = htons(0);
-      remote_addr.sin_addr.S_un.S_addr = inet_addr("43.254.218.121");
-
-      char* message, recv[BUFFER_SIZE];
-      ICMP_packet_t *packet;
-      ICMP_packet_new(&packet, ECHO, 0);
-
-      int packet_len = ICMP_packet_create(packet, &message);
-      
-      if(connect(s_client, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) == SOCKET_ERROR)
-      {
-            
-            printf("Error: Connect failed.\n");
-            closesocket(s_client);
-            exit(1);
-      }
-
-      int ttl = 1;
-      int ret;
-      int len = sizeof(remote_addr);
-      
-      //char nochecksum = 1;
-      //setsockopt(s_client, IPPROTO_UDP, UDP_NOCHECKSUM, &nochecksum, sizeof(nochecksum));
-      
-      while(ttl <= MAX_TTL)
-      {
-            memset(recv, 0, BUFFER_SIZE);
-            
-            if(setsockopt(s_client, IPPROTO_IP, IP_TTL, (char*)&ttl, sizeof(ttl)) == SOCKET_ERROR)
-            {
-                  printf("Error: Socket option set error.\n");
-                  closesocket(s_client);
-                  exit(1);
-            }
-            if(sendto(s_client, message, packet_len, 0, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) < 0)
-            {
-                  printf("Error: Send error. Error code: %d\n", WSAGetLastError());
-                  closesocket(s_client);
-                  exit(1);
-            }
-            
-            if((ret = recvfrom(s_client, recv, BUFFER_SIZE, 0, (struct sockaddr *)&remote_addr, (socklen_t *)&len)) < 0)
-            {
-                  printf("Error: Receive error. Error code: %d\n",  WSAGetLastError());
-                  closesocket(s_client);
-                  exit(1);
-            }
-            ICMP_packet_clip(recv, ret);
-            //printf("%s\n", recv);
-            ttl++;
-      }
-      
-}           
-*/
-
 void traceroute_cmd(int argc, char *argv[])
 {
       
@@ -387,22 +319,52 @@ void traceroute_protocol_icmp(traceroute_cmd_t *cp)
       
       int ttl = 0;
       struct sockaddr_in remote_addr, local_addr;
-      // ICMP
-      // the Uinx (included the macOS) can't use the IPPROTO_ICMP to create ICMP packet.
-      // QAQ 
-      // ICMP model
+      #ifdef _WIN32
+      sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+      if(sockfd == INVALID_SOCKET)
+      {
+            printf("Error: Socket create error. Error code: %d.\n", WSAGetLastError());
+            exit(1);
+      }
+      sockld = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+      if(sockld == INVALID_SOCKET)
+      {
+            printf("Error: Socket create error. Error code: %d.\n", WSAGetLastError());
+            exit(1);
+      }
+      #endif
       if((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0)
       {
             perror("Error");
             exit(1);
       }
-      
       if((sockld = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0)
       {
             perror("Error");
             exit(1);
       }
+      
+      #ifdef _WIN32
+      SOCKADDR_IN remote_addr;
+      remote_addr.sin_family = AF_INET;
+      remote_addr.sin_port = htons(0);
+      remote_addr.sin_addr.S_un.S_addr = inet_addr("43.254.218.121");
 
+      char* message, recv[BUFFER_SIZE];
+      ICMP_packet_t *packet;
+      ICMP_packet_new(&packet, ECHO, 0);
+
+      int packet_len = ICMP_packet_create(packet, &message);
+      
+      if(connect(sockfd, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) == SOCKET_ERROR)
+      {
+            
+            printf("Error: Connect failed.\n");
+            closesocket(s_client);
+            exit(1);
+      }
+      #endif
+      
       //time out setting. 10s 
       struct timeval tv;
       tv.tv_sec = 10;
