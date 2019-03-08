@@ -207,15 +207,6 @@ void traceroute_protocol_udp(traceroute_cmd_t *cp)
       }
       char *address = cp->addr;
 
-      #ifdef WIN32
-      WORD socket_version = MAKEWORD(2,2);
-      WSADATA data;
-      if(WSAStartup(socket_version, &data) != 0)
-      {
-            printf("Error: Startup error.\n");
-            exit(1);
-      }
-      #endif
       int sendsockfd, recvsockfd;
 
       struct sockaddr_in send, recv;
@@ -319,20 +310,6 @@ void traceroute_protocol_icmp(traceroute_cmd_t *cp)
       
       int ttl = 0;
       struct sockaddr_in remote_addr, local_addr;
-      #ifdef _WIN32
-      sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-      if(sockfd == INVALID_SOCKET)
-      {
-            printf("Error: Socket create error. Error code: %d.\n", WSAGetLastError());
-            exit(1);
-      }
-      sockld = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-      if(sockld == INVALID_SOCKET)
-      {
-            printf("Error: Socket create error. Error code: %d.\n", WSAGetLastError());
-            exit(1);
-      }
-      #endif
       if((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)) < 0)
       {
             perror("Error");
@@ -344,26 +321,6 @@ void traceroute_protocol_icmp(traceroute_cmd_t *cp)
             exit(1);
       }
       
-      #ifdef _WIN32
-      SOCKADDR_IN remote_addr;
-      remote_addr.sin_family = AF_INET;
-      remote_addr.sin_port = htons(0);
-      remote_addr.sin_addr.S_un.S_addr = inet_addr("43.254.218.121");
-
-      char* message, recv[BUFFER_SIZE];
-      ICMP_packet_t *packet;
-      ICMP_packet_new(&packet, ECHO, 0);
-
-      int packet_len = ICMP_packet_create(packet, &message);
-      
-      if(connect(sockfd, (struct sockaddr *)&remote_addr, sizeof(remote_addr)) == SOCKET_ERROR)
-      {
-            
-            printf("Error: Connect failed.\n");
-            closesocket(s_client);
-            exit(1);
-      }
-      #endif
       
       //time out setting. 10s 
       struct timeval tv;
