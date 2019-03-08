@@ -4,6 +4,8 @@
 #include <unistd.h>           // close()
 #include <string.h>           // strcpy, memset(), and memcpy()
 
+#define TRACEROUTE_API
+
 #if defined(__APPLE__) || defined(linux)/*defined(TRAGET_OS_IPHONE) || defined(TARGET_OS_MAC) */|| defined(__unix__)
 #define _PLATFORM_UNIX
 #endif
@@ -41,6 +43,10 @@ static long long getSystemTime(){
 // data default size
 #define DATA_SIZE 64
 
+// default port
+#define PORT 32455 
+
+
 #define ODD_EVEN(arr, i, len) ( (i == len) ? 0x00 : arr[i]) // odd octets
 
 // Protocols
@@ -72,7 +78,7 @@ struct IP_packet
 
 typedef struct IP_packet IP_packet_t;
 
-void IP_packet_create(IP_packet_t **t, u_int8_t ttl);
+void IP_packet_create(IP_packet_t **t, u_int8_t ttl, int (*err_callback)(char *msg));
 
 //ICMP packet
 
@@ -102,19 +108,15 @@ enum ICMP_packet_type{
 
 typedef struct ICMP_packet ICMP_packet_t;
 
-IP_packet_t* ICMP_packet_clip(char *buffer, size_t buffer_size);
+IP_packet_t* ICMP_packet_clip(char *buffer, size_t buffer_size, int (*err_callback)(char *err_msg));
 
 int ICMP_packet_create(ICMP_packet_t *packet, char **buffer);
 
 u_int16_t ICMP_packet_checksum(char *s, int len);
 
-void ICMP_packet_new(ICMP_packet_t **packet, u_int8_t type, u_int8_t code);
+void ICMP_packet_new(ICMP_packet_t **packet, u_int8_t type, u_int8_t code, int (*err_callback)(char *msg));
 
-
-void traceroute_run(int argc, char *argv[]);
-
-
-struct traceroute_cmd
+struct traceroute_conf
 {
       char *addr;
       protocols_t protocol;
@@ -123,16 +125,51 @@ struct traceroute_cmd
       u_int16_t port;
 };
 
-typedef struct traceroute_cmd traceroute_cmd_t;
+typedef struct traceroute_conf traceroute_conf_t;
 
-void traceroute_cmd_new(traceroute_cmd_t ** cpp);
+typedef struct
+{
+      traceroute_conf_t cmd; //cmd
+      int sockfd; //send
+      int sockld;  //resv
+      
+}traceroute;
 
-void traceroute_cmd(int argc, char *argv[]);
 
 int traceroute_isrecv(u_int8_t *op, char * rp);
 
-void traceroute_protocol_udp(traceroute_cmd_t *cp);
+void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, long long *ms), int (*err_callback)(char *err_msg));
 
-void traceroute_protocol_icmp(traceroute_cmd_t *cp);
+void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route, long long *ms), int (*err_callback)(char *err_msg));
+
+void traceroute_error_msg(char **msg, char *s, int len);
+
+// APIs
+#define ERROR_MALLOC "Error: Init failed."
+#define ERROR_PROTOCOL "Error: No such protocol"
+
+#define ERROR_CALLBACK(fuc, msg, args...) \
+      do{ \
+            if (args == NULL) { fuc(msg); break;}\
+            char msg_s[BUFFER_SIZE]; \
+            sprintf(msg_s, msg, args);\
+       if(fuc != NULL) fuc(msg_s);\
+      }while(0)
+
+#define SUCCESS_CALLBACK(fuc, dest, mss) \
+      do{ \
+            if(fuc != NULL) fuc(dest, mss);\
+      }while(0)
+
+#define IP_INTCHAR(chars, ints) \
+      do{ \
+            sprintf(chars, "%d.%d.%d.%d", ints[0], ints[1], ints[2], ints[3]);\
+      }while(0)
+
+TRACEROUTE_API int traceroute_init(traceroute **tpp,  char **err_msg);
+
+TRACEROUTE_API int traceroute_run_async(traceroute *tp, int (*success_callback)(char *route, long long *ms), int (*err_callback)(char *err_msg));
+
+TRACEROUTE_API int traceroute_free(traceroute *tp);
 
 #endif
