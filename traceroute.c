@@ -124,7 +124,7 @@ IP_packet_t* ICMP_packet_clip(char *buffer, size_t buffer_size, int (*err_callba
 }
 
 
-void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, long long *ms), int (*err_callback)(char *err_msg))
+void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg))
 {
       char *address = t.cmd.addr;
 
@@ -207,7 +207,7 @@ void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, 
                   {
                         recv_flag = 1;
                         long long time_out[3] = {0ll};
-                        SUCCESS_CALLBACK(success_callback, "*.*.*\t", time_out);
+                        SUCCESS_CALLBACK(success_callback, NULL, time_out, TIME_OUT);
                         break;
                   }
                   long long finished = getSystemTime();
@@ -221,10 +221,10 @@ void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, 
             IP_packet_t* recv_packet = ICMP_packet_clip(recv_message, ret, err_callback);
             char src_address[16];
             IP_INTCHAR(src_address, recv_packet->source_addr);
-            SUCCESS_CALLBACK(success_callback, src_address, times);
+            SUCCESS_CALLBACK(success_callback, src_address, times, OK);
             if(traceroute_isrecv(recv_packet->source_addr, address))
             {
-                  printf("The route arrive the distination %s, traceroute finished.\n", address);
+                  SUCCESS_CALLBACK(success_callback, NULL, NULL, FINISHED);
                   break;
             }
             
@@ -234,7 +234,7 @@ void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, 
       //free(address);
 }
 
-void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route, long long *ms), int (*err_callback)(char *err_msg))
+void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg))
 {
       
       int sockfd, sockld;
@@ -308,7 +308,7 @@ void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route,
                   {
                         recv_flag = 1;
                         long long time_out[3] = {0ll};
-                        SUCCESS_CALLBACK(success_callback, "*.*.*\t", time_out);
+                        SUCCESS_CALLBACK(success_callback, NULL, time_out, TIME_OUT);
                         break;
                   }
                   long long finished = getSystemTime();
@@ -322,10 +322,10 @@ void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route,
             IP_packet_t* recv_packet = ICMP_packet_clip(recv, ret, err_callback);
             char src_address[16];
             IP_INTCHAR(src_address, recv_packet->source_addr);
-            SUCCESS_CALLBACK(success_callback, src_address, times);
+            SUCCESS_CALLBACK(success_callback, src_address, times, OK);
             if(traceroute_isrecv(recv_packet->source_addr, address))
             {
-                  printf("The route arrive the distination %s, traceroute finished.\n", address);
+                  SUCCESS_CALLBACK(success_callback, NULL, NULL, FINISHED);
                   break;
             }
             
@@ -371,7 +371,7 @@ TRACEROUTE_API int traceroute_init(traceroute **tpp, char **err_msg)
       return 1;
 }
 
-TRACEROUTE_API int traceroute_run_async(traceroute *tp, int (*success_callback)(char *route, long long *ms), int (*err_callback)(char *err_msg))
+TRACEROUTE_API int traceroute_run_async(traceroute *tp, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg))
 {
       if(tp == NULL)
       {

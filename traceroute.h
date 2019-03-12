@@ -135,18 +135,25 @@ typedef struct
       
 }traceroute;
 
+typedef enum _INFO
+{
+      TIME_OUT = 0,
+      OK = 1,
+      FINISHED = 2
+}INFO;
 
 int traceroute_isrecv(u_int8_t *op, char * rp);
 
-void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, long long *ms), int (*err_callback)(char *err_msg));
+void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg));
 
-void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route, long long *ms), int (*err_callback)(char *err_msg));
+void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg));
 
 void traceroute_error_msg(char **msg, char *s, int len);
 
 // APIs
 #define ERROR_MALLOC "Error: Init failed."
 #define ERROR_PROTOCOL "Error: No such protocol"
+
 
 #define ERROR_CALLBACK(fuc, msg, args...) \
       do{ \
@@ -156,9 +163,9 @@ void traceroute_error_msg(char **msg, char *s, int len);
        if(fuc != NULL) fuc(msg_s);\
       }while(0)
 
-#define SUCCESS_CALLBACK(fuc, dest, mss) \
+#define SUCCESS_CALLBACK(fuc, dest, mss, info) \
       do{ \
-            if(fuc != NULL) fuc(dest, mss);\
+            if(fuc != NULL) fuc(dest, mss, info);\
       }while(0)
 
 #define IP_INTCHAR(chars, ints) \
@@ -168,7 +175,7 @@ void traceroute_error_msg(char **msg, char *s, int len);
 
 TRACEROUTE_API int traceroute_init(traceroute **tpp,  char **err_msg);
 
-TRACEROUTE_API int traceroute_run_async(traceroute *tp, int (*success_callback)(char *route, long long *ms), int (*err_callback)(char *err_msg));
+TRACEROUTE_API int traceroute_run_async(traceroute *tp, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg));
 
 TRACEROUTE_API int traceroute_free(traceroute *tp);
 
