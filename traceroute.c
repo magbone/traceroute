@@ -85,42 +85,37 @@ u_int16_t ICMP_packet_checksum(char *s, int len)
       return (u_int16_t)~sum;
 }
 
-IP_packet_t* ICMP_packet_clip(char *buffer, size_t buffer_size, int (*err_callback)(char *err_msg))
+traceroute_reply_t* ICMP_packet_clip(char *buffer, size_t buffer_size, int (*err_callback)(char *err_msg))
 {
-      IP_packet_t *packet;
-      packet = (IP_packet_t *)malloc(sizeof(IP_packet_t));
-      if(packet == NULL) 
+      traceroute_reply_t *reply;
+      reply = (traceroute_reply_t *)malloc(sizeof(traceroute_reply_t));
+      if(reply == NULL) 
       {
             ERROR_CALLBACK(err_callback, ERROR_MALLOC, NULL);
             exit(1);
       }
       int index = 0;
-      packet->version_IPL = buffer[0];
-      packet->type_of_service = buffer[1];
-      packet->length = (buffer[2] << 8) + (buffer[3] & 0xff);//(buffer[index++] << 8 ) + (buffer[index++]);
-      packet->indentification = (buffer[4] << 8) + (buffer[5] & 0xff);
-      packet->flags_fragmentOffset = (buffer[6] << 8) + (buffer[7] & 0xff);
-      packet->ttl = buffer[8];
-      packet->protocol = buffer[9];
-      packet->header_checksum = (buffer[10] << 8) + (buffer[11] & 0xff);
+      reply->ip_packet.version_IPL = buffer[0];
+      reply->ip_packet.type_of_service = buffer[1];
+      reply->ip_packet.length = (buffer[2] << 8) + (buffer[3] & 0xff);//(buffer[index++] << 8 ) + (buffer[index++]);
+      reply->ip_packet.indentification = (buffer[4] << 8) + (buffer[5] & 0xff);
+      reply->ip_packet.flags_fragmentOffset = (buffer[6] << 8) + (buffer[7] & 0xff);
+      reply->ip_packet.ttl = buffer[8];
+      reply->ip_packet.protocol = buffer[9];
+      reply->ip_packet.header_checksum = (buffer[10] << 8) + (buffer[11] & 0xff);
       char source_addr[4] = { buffer[12], buffer[13], buffer[14], buffer[15]};
-      packet->source_addr = (u_int8_t *)source_addr;
+      reply->ip_packet.source_addr = (u_int8_t *)source_addr;
       char remote_addr[4] = { buffer[16], buffer[17], buffer[18], buffer[19]};
-      packet->remote_addr = (u_int8_t *)remote_addr;
+      reply->ip_packet.remote_addr = (u_int8_t *)remote_addr;
 
       //ICMP protocol
-      ICMP_packet_t *icmp;
-      icmp = (ICMP_packet_t *)malloc(sizeof(ICMP_packet_t));
-      if(icmp == NULL)
-      {
-            ERROR_CALLBACK(err_callback, ERROR_MALLOC, NULL);
-            exit(1);
-      }
+      ICMP_packet_t icmp;
 
-      icmp->type = buffer[20];
-      icmp->code = buffer[21];
+      icmp.type = buffer[20];
+      icmp.code = buffer[21];
 
-      return packet;
+      reply->icmp_packet = icmp;
+      return reply;
 }
 
 
@@ -218,11 +213,11 @@ void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, 
                   recv_flag = 0;
                   continue;
             }
-            IP_packet_t* recv_packet = ICMP_packet_clip(recv_message, ret, err_callback);
+            traceroute_reply_t * reply = ICMP_packet_clip(recv_message, ret, err_callback);
             char src_address[16];
-            IP_INTCHAR(src_address, recv_packet->source_addr);
-            SUCCESS_CALLBACK(success_callback, src_address, times, OK);
-            if(traceroute_isrecv(recv_packet->source_addr, address))
+            IP_INTCHAR(src_address, reply->ip_packet.source_addr);
+            SUCCESS_CALLBACK(success_callback, src_address, times, get_type(reply->icmp_packet.type));
+            if(traceroute_isrecv(reply->ip_packet.source_addr, address))
             {
                   SUCCESS_CALLBACK(success_callback, NULL, NULL, FINISHED);
                   break;
@@ -319,11 +314,11 @@ void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route,
                   recv_flag = 0;
                   continue;
             }
-            IP_packet_t* recv_packet = ICMP_packet_clip(recv, ret, err_callback);
+            traceroute_reply_t * reply = ICMP_packet_clip(recv, ret, err_callback);
             char src_address[16];
-            IP_INTCHAR(src_address, recv_packet->source_addr);
-            SUCCESS_CALLBACK(success_callback, src_address, times, OK);
-            if(traceroute_isrecv(recv_packet->source_addr, address))
+            IP_INTCHAR(src_address, reply->ip_packet.source_addr);
+            SUCCESS_CALLBACK(success_callback, src_address, times, get_type(reply->icmp_packet.type));
+            if(traceroute_isrecv(reply->ip_packet.source_addr, address))
             {
                   SUCCESS_CALLBACK(success_callback, NULL, NULL, FINISHED);
                   break;
@@ -397,4 +392,19 @@ TRACEROUTE_API int traceroute_run_async(traceroute *tp, int (*success_callback)(
                   break;
       }
       return 1;
+}
+
+INFO get_type(u_int8_t type)
+{
+      switch (type)
+      {           
+            case 11: 
+                  return (INFO)TIME_TO_EXCEEDED;
+            case 3:
+                  return (INFO)DISTINATION_UNREACHABLE;
+            default:          
+                  return (INFO)-1; 
+      }      
+      return (INFO) -1;
+      
 }

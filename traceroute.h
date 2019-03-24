@@ -108,7 +108,15 @@ enum ICMP_packet_type{
 
 typedef struct ICMP_packet ICMP_packet_t;
 
-IP_packet_t* ICMP_packet_clip(char *buffer, size_t buffer_size, int (*err_callback)(char *err_msg));
+struct traceroute_reply
+{
+      IP_packet_t ip_packet;
+      ICMP_packet_t icmp_packet;
+};
+
+typedef struct traceroute_reply traceroute_reply_t;
+
+traceroute_reply_t* ICMP_packet_clip(char *buffer, size_t buffer_size, int (*err_callback)(char *err_msg));
 
 int ICMP_packet_create(ICMP_packet_t *packet, char **buffer);
 
@@ -138,9 +146,12 @@ typedef struct
 typedef enum _INFO
 {
       TIME_OUT = 0,
-      OK = 1,
-      FINISHED = 2
+      FINISHED = 2,
 }INFO;
+
+ 
+INFO get_type(u_int8_t type);
+
 
 int traceroute_isrecv(u_int8_t *op, char * rp);
 
