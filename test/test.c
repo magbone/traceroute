@@ -31,7 +31,7 @@ int main(int argc,char *argv[])
       }
       t->cmd.protocol = ICMP;
       t->cmd.ttl = 45;
-      t->cmd.addr = "114.114.114.114";
+      t->cmd.addr = "www.baidu.com";
       traceroute_run_async(t, success_callback, error_callback);
       return 0;
 }

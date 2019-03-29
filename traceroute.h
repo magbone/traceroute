@@ -22,6 +22,9 @@
 #include <sys/ioctl.h>        // macro ioctl is defined
 #include <net/if.h>
 
+
+#include "host.h"
+
 static long long getSystemTime(){
             struct timeb t;
             ftime(&t);
@@ -38,7 +41,9 @@ static long long getSystemTime(){
 #define MAX_TTL 56
 
 // buffer size
+#ifndef BUFFER_SIZE
 #define BUFFER_SIZE 2048
+#endif
 
 // data default size
 #define DATA_SIZE 64
@@ -126,7 +131,7 @@ void ICMP_packet_new(ICMP_packet_t **packet, u_int8_t type, u_int8_t code, int (
 
 struct traceroute_conf
 {
-      char *addr;
+      char* addr;
       protocols_t protocol;
       u_int8_t ttl;
       u_int8_t packet_size;
@@ -165,6 +170,7 @@ void traceroute_error_msg(char **msg, char *s, int len);
 #define ERROR_MALLOC "Error: Init failed."
 #define ERROR_PROTOCOL "Error: No such protocol"
 
+char *traceroute_ipaddress(char *address);
 
 #define ERROR_CALLBACK(fuc, msg, args...) \
       do{ \

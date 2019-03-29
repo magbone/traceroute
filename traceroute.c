@@ -233,7 +233,7 @@ void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route,
 {
       
       int sockfd, sockld;
-      char *address = t.cmd.addr;
+      char *address = traceroute_ipaddress(t.cmd.addr);
       
       int ttl = 0;
       struct sockaddr_in remote_addr, local_addr;
@@ -357,12 +357,17 @@ TRACEROUTE_API int traceroute_init(traceroute **tpp, char **err_msg)
             traceroute_error_msg(err_msg, ERROR_MALLOC, strlen(ERROR_MALLOC));
             return 0;
       }
-      traceroute_conf_t cp;
+      traceroute_conf_t *cp = (traceroute_conf_t *)malloc(sizeof(traceroute_conf_t));
+      if(cp == NULL)
+      {
+            traceroute_error_msg(err_msg, ERROR_MALLOC, strlen(ERROR_MALLOC));
+            return 0;
+      }
       //defualt setting
-      cp.ttl = MAXTTL;
-      cp.packet_size = DATA_SIZE;
-      cp.port = PORT;
-      (*tpp)->cmd = cp;
+      cp->ttl = MAXTTL;
+      cp->packet_size = DATA_SIZE;
+      cp->port = PORT;
+      (*tpp)->cmd = *cp;
       return 1;
 }
 
@@ -407,4 +412,28 @@ INFO get_type(u_int8_t type)
       }      
       return (INFO) -1;
       
+}
+
+char * traceroute_ipaddress(char *address)
+{
+      char *ip_addr;
+      if((ip_addr = (char*)malloc(sizeof(char) * 16)) == NULL)
+      {
+            printf("Error: Init failed.\n");
+            exit(1);
+      }
+      if(domain_match(address))
+            return address;
+      else
+      {
+            host_header_t *hp;
+            host_header_create(&hp);
+            host_question_t *qp;
+            host_question_create(&qp, address, A);
+            char *msg;
+            int msg_len = host_query_create(hp, qp, &msg);
+            u_int8_t *dns_ip = host_query_udp(msg, msg_len);
+            IP_INTCHAR(ip_addr, dns_ip);
+      }
+      return ip_addr;
 }
