@@ -23,7 +23,7 @@ There are there apis total. we provide two methods to process the results, one i
 ## Furtures
 
 + [ ] IPv6 support
-+ [ ] DNS support
++ [+] DNS support
 + [ ] TCP support
 + [ ] synchronization method 
 + [ ] others
