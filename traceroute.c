@@ -416,24 +416,19 @@ INFO get_type(u_int8_t type)
 
 char * traceroute_ipaddress(char *address)
 {
-      char *ip_addr;
-      if((ip_addr = (char*)malloc(sizeof(char) * 16)) == NULL)
+      char *ip_addr = NULL;
+      printf("Address: %s\n", address);
+      if (address == NULL) return NULL;
+      struct hostent * host = gethostbyname(address);
+      
+      if ((ip_addr = (char *)malloc(sizeof(char) * 32)) == NULL)
       {
-            printf("Error: Init failed.\n");
-            exit(1);
+            return NULL;
       }
-      if(domain_match(address))
-            return address;
-      else
-      {
-            host_header_t *hp;
-            host_header_create(&hp);
-            host_question_t *qp;
-            host_question_create(&qp, address, A);
-            char *msg;
-            int msg_len = host_query_create(hp, qp, &msg);
-            u_int8_t *dns_ip = host_query_udp(msg, msg_len);
-            IP_INTCHAR(ip_addr, dns_ip);
-      }
+      if(!host) return ip_addr;
+      if(host->h_addrtype == AF_INET)
+            inet_ntop(host->h_addrtype, host->h_addr_list[0], ip_addr, 32);
+
+      printf("Host: %s\n", ip_addr);
       return ip_addr;
 }

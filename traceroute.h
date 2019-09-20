@@ -4,7 +4,10 @@
 #include <unistd.h>           // close()
 #include <string.h>           // strcpy, memset(), and memcpy()
 
+#ifndef TRACEROUTE_API
 #define TRACEROUTE_API
+#endif 
+
 
 #if defined(__APPLE__) || defined(linux)/*defined(TRAGET_OS_IPHONE) || defined(TARGET_OS_MAC) */|| defined(__unix__)
 #define _PLATFORM_UNIX
@@ -23,7 +26,6 @@
 #include <net/if.h>
 
 
-#include "host.h"
 
 static long long getSystemTime(){
             struct timeb t;
