@@ -20,6 +20,18 @@ There are there apis total. we provide two methods to process the results, one i
 - ```int traceroute_run_async(traceroute *tp, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg));```handles the async working. First argument ```ip``` pointer had been initalized before. Success will execute the ```success_callback```, failure will execute the ```err_callback```. ```success_callback```including there params, more details plaese see the test.
 -```int traceroute_free(traceroute *tp)```destorys the traceroute pointer and voids the memory leak.
 
+## Build test
+
+Installed clang or gun compiler(other included c compiler, etc). Using very sample cammands as follows.
+
+``` shell
+
+gcc traceroute.c test.c -o test  // GUN compiler
+
+clang traceroute.c test.c -o test // Clang comilper
+
+```
+Make sure `traceroute.c` `traceroute.h`  `test.c` are in same directory, or it will make mistake generally.
 ## Furtures
 
 + [ ] IPv6 support

@@ -26,6 +26,9 @@
 #include <net/if.h>
 
 
+#if defined(__cplusplus) || defined(c_plusplus)
+extern "C" {
+#endif
 
 static long long getSystemTime(){
             struct timeb t;
@@ -197,5 +200,9 @@ TRACEROUTE_API int traceroute_init(traceroute **tpp,  char **err_msg);
 TRACEROUTE_API int traceroute_run_async(traceroute *tp, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg));
 
 TRACEROUTE_API int traceroute_free(traceroute *tp);
+
+#if defined(__cplusplus) || defined(c_plusplus)
+}
+#endif
 
 #endif

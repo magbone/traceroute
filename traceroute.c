@@ -121,8 +121,8 @@ traceroute_reply_t* ICMP_packet_clip(char *buffer, size_t buffer_size, int (*err
 
 void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg))
 {
-      char *address = t.cmd.addr;
-
+     
+      
       int sendsockfd, recvsockfd;
 
       struct sockaddr_in send, recv;
@@ -150,6 +150,8 @@ void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, 
             close(recvsockfd);
             exit(0);
       }
+      
+      char *address = traceroute_ipaddress(t.cmd.addr);
       
       memset(&send,0,sizeof(send));
       send.sin_family = AF_INET;
@@ -185,6 +187,7 @@ void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, 
             {
                   ERROR_CALLBACK(err_callback, "Error: %s", strerror(errno));
                   close(sendsockfd);
+                  if (address) free(address);
                   exit(1); 
             }
             memset(recv_message,0,BUFFER_SIZE);
@@ -194,7 +197,8 @@ void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, 
                   if(sendto(sendsockfd, send_message, 64, 0, (struct sockaddr*) &send,sizeof(send)) < 0)
                   {
                         ERROR_CALLBACK(err_callback, "Error: %s", strerror(errno));
-                        close(sendsockfd);     
+                        close(sendsockfd); 
+                        if (address) free(address);    
                         exit(1);   
                   }
                   
@@ -220,13 +224,17 @@ void traceroute_protocol_udp(traceroute t, int (*success_callback)(char *route, 
             if(traceroute_isrecv(reply->ip_packet.source_addr, address))
             {
                   SUCCESS_CALLBACK(success_callback, NULL, NULL, FINISHED);
+                  if (reply) free(reply);
                   break;
             }
+            if (reply) free(reply);
             
       }
+      SUCCESS_CALLBACK(success_callback, NULL, NULL, FINISHED);
       close(sendsockfd);
       close(recvsockfd);
-      //free(address);
+      if (address) free(address);
+      
 }
 
 void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route, long long *ms, INFO info), int (*err_callback)(char *err_msg))
@@ -266,7 +274,8 @@ void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route,
       ICMP_packet_t *packet;
       ICMP_packet_new(&packet, ECHO, 0, err_callback);
 
-      int packet_len = ICMP_packet_create(packet, &message);;
+      int packet_len = ICMP_packet_create(packet, &message);
+      free(packet);
       int addr_len = sizeof(local_addr);
       memset(&remote_addr, 0, sizeof(remote_addr));
       remote_addr.sin_family = AF_INET;
@@ -286,6 +295,8 @@ void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route,
             if(setsockopt(sockfd, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl)) < 0)
             {
                   ERROR_CALLBACK(err_callback, "Error %s", strerror(errno));
+                  if (address) free(address);
+                  if (message) free(message);
                   close(sockfd);
                   exit(1); 
             }
@@ -296,7 +307,9 @@ void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route,
                   if(sendto(sockfd, message, packet_len, 0, (struct sockaddr*) &remote_addr,addr_len) < 0)
                   {
                         ERROR_CALLBACK(err_callback, "Error: %s", strerror(errno));
-                        close(sockfd);     
+                        close(sockfd);  
+                        if (address) free(address); 
+                        if (message) free(message);  
                         exit(1);         
                   }
                   if((ret = recvfrom(sockld, recv, BUFFER_SIZE, 0,(struct sockaddr*) &local_addr,(socklen_t *)&addr_len)) < 0)
@@ -321,10 +334,15 @@ void traceroute_protocol_icmp(traceroute t, int (*success_callback)(char *route,
             if(traceroute_isrecv(reply->ip_packet.source_addr, address))
             {
                   SUCCESS_CALLBACK(success_callback, NULL, NULL, FINISHED);
+                  if (reply) free(reply);
                   break;
             }
+            if (reply) free(reply);
             
       }
+      SUCCESS_CALLBACK(success_callback, NULL, NULL, FINISHED);
+      if (message) free(message);
+      if (address) free(address);
       close(sockfd);
       close(sockld);
 }
@@ -417,7 +435,6 @@ INFO get_type(u_int8_t type)
 char * traceroute_ipaddress(char *address)
 {
       char *ip_addr = NULL;
-      printf("Address: %s\n", address);
       if (address == NULL) return NULL;
       struct hostent * host = gethostbyname(address);
       
@@ -429,6 +446,5 @@ char * traceroute_ipaddress(char *address)
       if(host->h_addrtype == AF_INET)
             inet_ntop(host->h_addrtype, host->h_addr_list[0], ip_addr, 32);
 
-      printf("Host: %s\n", ip_addr);
       return ip_addr;
 }
