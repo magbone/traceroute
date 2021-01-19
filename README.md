@@ -28,7 +28,7 @@ Installed clang or gun compiler(other included c compiler, etc). Using very samp
 
 gcc traceroute.c test.c -o test  // GUN compiler
 
-clang traceroute.c test.c -o test // Clang comilper
+clang traceroute.c test.c -o test // Clang compiler
 
 ```
 Make sure `traceroute.c` `traceroute.h`  `test.c` are in same directory, or it will make mistake generally.
@@ -42,3 +42,4 @@ Make sure `traceroute.c` `traceroute.h`  `test.c` are in same directory, or it w
 ## License
 
 MIT License
+  
